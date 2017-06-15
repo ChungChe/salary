@@ -12,9 +12,21 @@ employee_working_data = defaultdict(list)
 #employees = []
 # name -> (date, on_time, off_time)s
 
-def parse_csv(csv_file):
-    employee_lines = []
-    hire_date_data = defaultdict(str) 
+def get_employee_names(filename):
+    name_list = []
+    with open(filename) as f:
+        employee_lines = f.readlines()
+        employee_lines.pop(0)
+        for line in employee_lines:
+            toks = line.split(',')
+            name_toks = toks[2].split(' ')
+            if len(name_toks) == 2:
+                name_list.append(name_toks[0])
+    return name_list
+
+def get_employee_hire_date_data(filename):
+    hire_date_data = defaultdict(str)
+    name = None
     with open('employee.csv') as f:
         employee_lines = f.readlines()
         employee_lines.pop(0)
@@ -23,11 +35,15 @@ def parse_csv(csv_file):
             name_toks = toks[2].split(' ')
             if len(name_toks) == 2:
                 name = name_toks[0]
-            else:
-                continue
             hire_date = toks[8]
-            #print("name: {}, hire_date: {}".format(name, hire_date))
+            if name == None:
+                continue
             hire_date_data[name] = hire_date
+    return hire_date_data
+def parse_csv(csv_file):
+    employee_lines = []
+    hire_date_data = get_employee_hire_date_data('employee.csv') 
+
     with open(csv_file) as f:
         lines = f.readlines()
         lines.pop(0) # remove first line
@@ -67,6 +83,11 @@ def parse_csv(csv_file):
             #employees.append(m)
             print("--------------------------------------------")
         return data_list
+
+
+
+
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

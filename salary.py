@@ -7,14 +7,22 @@ from var import *
 import math
 import calendar
 from date_util import *
+from peewee import *
 #from peewee import *
 # Use deferring initialization
-#db = SqliteDatabase(None)
 
 datetime_format = '%H:%M'
 
 class employee:
-    def __init__(self, name ='TEST', hire_date = '2017/01/01', factor = 0.3333333, weight = 0.0, agency_fee = 1500, labor_fee = 399, insurance_fee = 296, accommodation_fee = 2500, unpaid_last = 0):
+    def __init__(self, name ='TEST', 
+            hire_date = '2017/01/01', 
+            factor = 0.3333333, 
+            weight = 0.0, 
+            agency_fee = 1500, 
+            labor_fee = 399, 
+            insurance_fee = 296, 
+            accommodation_fee = 2500, 
+            unpaid_last = 0):
         self.name = name
         self.hire_date = hire_date
         self.factor = factor
@@ -26,6 +34,8 @@ class employee:
         self.insurance_fee = insurance_fee
         self.accommodation_fee = accommodation_fee
         self.unpaid_last = unpaid_last
+
+
     # on: 7:54 -> 8:00
     # off: 8:07 -> 8:00
     # grid: 15 minutes
@@ -256,15 +266,15 @@ class employee:
         if hours >= 2.0:
             hours -= 2.0
             overtime1_hrs += 2
-            overtime1_sal += 2 * sal_per_hour * weight133
+            overtime1_sal += 2 * sal_per_hour * weight134
         else:
-            overtime1_sal += hours * sal_per_hour * weight133
+            overtime1_sal += hours * sal_per_hour * weight134
             overtime1_hrs += hours
             hours = 0.0
         overtime2_sal = 0.0
         overtime2_hrs = 0
         if hours > 0.0:
-            overtime2_sal += hours * sal_per_hour * weight166 
+            overtime2_sal += hours * sal_per_hour * weight167 
             overtime2_hrs = hours
         today_sal += base_sal + overtime1_sal + overtime2_sal
         return {'today_sal': today_sal,
@@ -319,9 +329,11 @@ class employee:
         off_day = actual_working_days - base_working_days
         minus = 0
         if off_day < 0:
+            total_overtime_hrs = 0.0
             minus = off_day * base_sal_per_day
-        overtime_salary = (total_overtime_hrs + weight133 * total_overtime1_hrs + weight166 * total_overtime2_hrs) * base_sal_per_hour - minus + total_nig_hours * night_allowance_weight
-        print("Stage {}: working hrs: {}, base_working_days: {}, mor: {}, nig: {}, overtime: {}, overtime1: {}, overtime2: {}, off day: {}, overtime: {}, night: {}".format(
+        total_night_sal = total_nig_hours * night_allowance_weight
+        overtime_salary = math.ceil((total_overtime_hrs + weight134 * total_overtime1_hrs + weight167 * total_overtime2_hrs) * base_sal_per_hour + minus + total_night_sal)
+        print("Stage {}: working hrs: {}, base_working_days: {}, mor: {}, nig: {}, overtime: {}, overtime1: {}, overtime2: {}, off day: {}, overtime: {}, night hrs: {}, night sal: {}".format(
                     stage_num,
                     total_working_hours,
                     base_working_days, 
@@ -332,7 +344,23 @@ class employee:
                     total_overtime2_hrs, 
                     off_day, 
                     overtime_salary,
-                    total_nig_hours * night_allowance_weight))
+                    total_nig_hours,
+                    total_night_sal))
+        dic = {'stage_num': stage_num,
+            'total_working_hours': total_working_hours,
+            'base_working_days': base_working_days,
+            'morning_working_days': morning_working_days,
+            'night_working_days': night_working_days,
+            'total_overtime_hrs': total_overtime_hrs,
+            'total_overtime1_hrs': total_overtime1_hrs,
+            'total_overtime2_hrs': total_overtime2_hrs,
+            'total_nig_hours': total_nig_hours,
+            'total_night_sal': total_night_sal,
+            'overtime_salary': overtime_salary
+        }
+        return dic
+
+
     def get_salary(self, year, month):
         overtime_salary = 0.0
         working_days_per_month = 0
@@ -348,15 +376,17 @@ class employee:
         day_list = []
         sal_list = []
         extra_pay_list = []
+        borrowing = 0
         rest_days = holidays[str(year)][int(month) - 1]
         
         extra_pay_day_list = self.get_extra_pay_day_list(year, month)
         print("pay day list: {}".format(extra_pay_day_list))
-        
-        self.get_two_week_sal(1, 1, extra_pay_day_list[0] + 1, extra_pay_day_list, year, month)
-        self.get_two_week_sal(2, extra_pay_day_list[0] + 1, extra_pay_day_list[1], extra_pay_day_list, year, month)
+       
+        two_week_lst = []
+        two_week_lst.append(self.get_two_week_sal(1, 1, extra_pay_day_list[0] + 1, extra_pay_day_list, year, month))
+        two_week_lst.append(self.get_two_week_sal(2, extra_pay_day_list[0] + 1, extra_pay_day_list[1], extra_pay_day_list, year, month))
         if len(extra_pay_day_list) > 2:
-            self.get_two_week_sal(3, extra_pay_day_list[1] + 1, extra_pay_day_list[2], extra_pay_day_list, year, month)
+            two_week_lst.append(self.get_two_week_sal(3, extra_pay_day_list[1] + 1, extra_pay_day_list[2], extra_pay_day_list, year, month))
         
         total_working_hours = 0
         total_base_working_hours = 0
@@ -415,12 +445,12 @@ class employee:
                             dic['today_sal']))
             day_list.append({'day': '{:1}{:2} [{:5} - {:5}] {:10.2f} hrs'.format(rest_day_marker, day, self.on_work_time[day], self.off_work_time[day], dic['today_hours']), 
                     'base': float(dic['base_hours']), 
-                    'base133': float(dic['overtime1_hrs']), 
-                    'base166': float(dic['overtime2_hrs'])})
+                    'base134': float(dic['overtime1_hrs']), 
+                    'base167': float(dic['overtime2_hrs'])})
             sal_list.append({'day': '{:1}{:2} [{:5} - {:5}]'.format(rest_day_marker, day, self.on_work_time[day], self.off_work_time[day]), 
                     'base': dic['base_sal'], 
-                    'base133': dic['overtime1_sal'], 
-                    'base166': dic['overtime2_sal']})
+                    'base134': dic['overtime1_sal'], 
+                    'base167': dic['overtime2_sal']})
         if working_days_per_month <= 0:
             return 0
         base_working_days = (total_days_in_this_month - rest_days)
@@ -501,7 +531,9 @@ class employee:
                 'unpiad_last': self.unpaid_last,
                 'tax': -tax, 
                 'extra_pay_list': extra_pay_list,
-                'unpiad': overtime_salary}
+                'borrowing': borrowing,
+                'unpiad': overtime_salary,
+                'two_week_lst': two_week_lst}
 
         return dict_list
 if __name__ == "__main__":
